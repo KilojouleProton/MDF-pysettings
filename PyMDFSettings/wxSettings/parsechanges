@@ -1,0 +1,46 @@
+#!/usr/bin/env perl
+
+use strict;
+my $fun;
+my $subs = "s";
+my $zubz = "s";
+my $c;
+my @files = [];
+my $raws = "Dwarf\ Fortress/raw/objects";
+print "#!/bin/bash\n";
+while (<>) {
+    next if (/^\s*'/);
+    $fun .= $1 if (/Sub (\w*)/);
+    next if (not $fun);
+    if (/If/) { $c=1;}
+    elsif (/Else/) { $c=0; }
+    $subs .= "/$1" if($c and /"([^".]*)"/ and not /"\d"/ and not /\\/ and not /"YES"/ and not /"NO"/);
+    $zubz .= "/$1" if((not $c) and /"([^".]*)"/ and not /"\d"/ and not /\\/);
+
+    push @files, $1 if (/"([^".]*\.txt)"/);
+    push @files, "creature_*.txt" if ($fun eq "exotics");
+
+    if (/End Sub/) {
+        if ($fun ne "toggle" and $fun ne "booleanTagSet" and $fun ne "stringTagSet") {
+            print "$fun() {\n\tif [ \$1 ]\n\t\tthen\n";
+            $subs .= "/g"; $zubz .= "/g";
+            $subs =~ s/\[/\\\[/g; $zubz =~ s/\[/\\\[/g;
+            $subs =~ s/\]/\\\]/g; $zubz =~ s/\]/\\\]/g;
+            #$subs =~ s/s\/(.*)\/(.*)\/(.*)\/(.*)\/g/s\/$1\/$2\/g;s\/$3\/$4\/g/;
+            $subs =~ s/s(\/.*\/.*)(\/.*\/.*)\/g/s$1\/g; s$2\/g/;
+            $zubz =~ s/s(\/.*\/.*)(\/.*\/.*)\/g/s$1\/g; s$2\/g/;
+            $subs =~ s/s(\/.*\/.*)(\/.*\/.*)(\/.*\/.*)\/g/s$1\/g; s$2\/g; s$3\/g/;
+            $zubz =~ s/s(\/.*\/.*)(\/.*\/.*)(\/.*\/.*)\/g/s$1\/g; s$2\/g; s$3\/g/;
+            print "\t\t\tsed -i '$subs'";
+            for my $ii (@files) { print " $ii" if(not $ii =~ /ARRAY/) }
+            print "\n\t\telse\n";
+            print "\t\t\tsed -i '$zubz'";
+            for my $ii (@files) { print " $ii" if(not $ii =~ /ARRAY/)}
+            print "\n\tfi\n}\n";
+        }
+        $fun = "";
+        $subs = "s";
+        $zubz = "s";
+        @files = [];
+    }
+}
